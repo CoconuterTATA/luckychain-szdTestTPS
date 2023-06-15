@@ -9,6 +9,8 @@
     <div class="input-wrapper">
       <input v-model="transactionCount" type="number" placeholder="输入交易数量">
       <button @click="submitTransaction" :disabled="submitting">提交</button>
+      <button @click="executeTransaction" :disabled="submitting">执行</button>
+      <button @click="pauseExecution" :disabled="!timer">暂停</button>
       <p>{{ submitMessage }}</p>
 
     </div>
@@ -52,6 +54,7 @@ export default {
     return {
       submitting: false,
       submitMessage:' ',
+      timer: null,
       transactionCount: 0,
       tpsData: [
        
@@ -178,75 +181,62 @@ export default {
 
       chart.setOption(options)
     },
+    executeTransaction() {
+      this.timer = setInterval(this.submitTransaction, 5000);
+    },
+    pauseExecution(){
+      clearInterval(this.timer);
+      this.timer = null;
+    },
+
     submitTransaction() {
-      this.submitting = true;
-      this.submitMessage = '正在提交交易....';
-      // 在这里获取输入的交易数量并进行相应的处理
-      console.log('提交交易数量:', this.transactionCount)
+  this.submitting = true;
+  this.submitMessage = '正在提交交易....';
+  console.log('提交交易数量:', this.transactionCount)
 
-      setTimeout(() => {
-            this.submitting = false;
-            this.submitMessage = '';
-            axios.post('http://150.158.173.17:3000/api/transaction', { count: this.transactionCount })
-        .then(response => {
-          // 处理成功响应
-          console.log(response.data);
+  setTimeout(() => {
+    this.submitting = false;
+    this.submitMessage = '';
+    axios.post('http://150.158.173.17:3000/api/transaction', { count: this.transactionCount })
+      .then(response => {
+        console.log(response.data);
 
-          let tpsResponse = JSON.parse(response.data.TpsResponse);
-          //解析TPS数据
+        let tpsResponse = JSON.parse(response.data.TpsResponse);
 
-          const currentTime = new Date().toLocaleString()
-          //添加当前系统时间
-    
+        const currentTime = new Date().toLocaleString()
 
-          this.tpsData.push({ time: currentTime, value: tpsResponse.tps })
-          const tpsChart = echarts.getInstanceByDom(this.$refs.tpsChartContainer)
-          tpsChart.setOption({
-            xAxis: {
-              data: this.tpsData.map(item => item.time)
-            },
-            series: [{
-              data: this.tpsData.map(item => item.value)
-            }]
-          })
+        //添加TPS数据
+        this.tpsData.push({ time: currentTime, value: tpsResponse.tps })
+        const tpsChart = echarts.getInstanceByDom(this.$refs.tpsChartContainer)
+        // tpsChart.clear();
+        tpsChart.setOption({
+          xAxis: {
+            data: this.tpsData.map(item => item.time)
+          },
+          series: [{
+            data: this.tpsData.map(item => item.value)
+          }]
         })
-        .catch(error => {
-          // 处理错误响应
-          console.error('交易处理失败:', error);
-        });
-            }, 3000);
-      // 发送交易的逻辑代码...
-      
 
-      // 模拟更新数据
-      // const newTPS = Math.floor(Math.random() * 100 + 50)
-      // const newResponseTime = Math.floor(Math.random() * 50 + 30)
-      // const currentTime = new Date().toLocaleString()
-
-      // this.tpsData.push({ time: currentTime, value: newTPS })
-      // this.responseTimeData.push({ time: currentTime, value: newResponseTime })
-
-      // 更新图表
-      // const tpsChart = echarts.getInstanceByDom(this.$refs.tpsChartContainer)
-      // tpsChart.setOption({
-      //   xAxis: {
-      //     data: this.tpsData.map(item => item.time)
-      //   },
-      //   series: [{
-      //     data: this.tpsData.map(item => item.value)
-      //   }]
-      // })
-
-      const responseTimeChart = echarts.getInstanceByDom(this.$refs.responseTimeChartContainer)
-      responseTimeChart.setOption({
-        xAxis: {
-          data: this.responseTimeData.map(item => item.time)
-        },
-        series: [{
-          data: this.responseTimeData.map(item => item.value)
-        }]
+        //添加响应时间数据
+        this.responseTimeData.push({ time: currentTime, value: tpsResponse.averageDelay })
+        const responseTimeChart = echarts.getInstanceByDom(this.$refs.responseTimeChartContainer)
+        // responseTimeChart.clear();
+        responseTimeChart.setOption({
+          xAxis: {
+            data: this.responseTimeData.map(item => item.time)
+          },
+          series: [{
+            data: this.responseTimeData.map(item => item.value)
+          }]
+        })
       })
-    }
+      .catch(error => {
+        console.error('交易处理失败:', error);
+      });
+  }, 3000);
+}
+
   }
 }
 </script>
