@@ -191,10 +191,9 @@ export default {
       this.timer = null;
     },
     submitTransaction() {
-      this.submitting = true;
-      this.submitMessage = '正在提交交易....';
-      // 在这里获取输入的交易数量并进行相应的处理
-      console.log('提交交易数量:', this.transactionCount)
+  this.submitting = true;
+  this.submitMessage = '正在提交交易....';
+  console.log('提交交易数量:', this.transactionCount)
 
       setTimeout(() => {
             this.submitting = false;
