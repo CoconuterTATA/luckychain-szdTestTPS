@@ -187,8 +187,11 @@ export default {
       this.timer = setInterval(this.submitTransaction, 10000);
     },
     pauseExecution(){
+      
       clearInterval(this.timer);
       this.timer = null;
+      this.isRunning = false;
+      this.submitting = false;
     },
     submitTransaction() {
   this.submitting = true;
