@@ -8,7 +8,9 @@
     </div>
     <div class="input-wrapper">
       <input v-model="transactionCount" type="number" placeholder="输入交易数量">
-      <button @click="submitTransaction" :disabled="submitting">提交</button>
+      <button @click="submitTransaction" :disabled="isRunning || submitting">提交</button>
+      <button @click="executeTransaction" :disabled="isRunning || submitting">执行</button>
+      <button @click="pauseExecution" :disabled="!timer">暂停</button>
       <p>{{ submitMessage }}</p>
 
     </div>
@@ -50,8 +52,10 @@ import 'echarts/lib/component/toolbox'
 export default {
   data() {
     return {
+      isRunning: false,
       submitting: false,
       submitMessage:' ',
+      timer: null,
       transactionCount: 0,
       tpsData: [
        
@@ -103,7 +107,7 @@ export default {
           }
         },
         title: {
-          text: 'TPS',
+          text: 'TPS/s',
           left: 'center'
         },
         xAxis: {
@@ -162,7 +166,7 @@ export default {
         },
         yAxis: {
           type: 'value',
-          name: '响应时间 (ms)'
+          name: '交易确认时间/ms'
         },
         series: [{
           type: 'line',
@@ -178,6 +182,14 @@ export default {
 
       chart.setOption(options)
     },
+    executeTransaction() {
+      this.isRunning = true;
+      this.timer = setInterval(this.submitTransaction, 10000);
+    },
+    pauseExecution(){
+      clearInterval(this.timer);
+      this.timer = null;
+    },
     submitTransaction() {
       this.submitting = true;
       this.submitMessage = '正在提交交易....';
@@ -191,15 +203,34 @@ export default {
         .then(response => {
           // 处理成功响应
           console.log(response.data);
+          let totalTps = 0;
+          let totalDelay = 0;
 
-          let tpsResponse = JSON.parse(response.data.TpsResponse);
+          response.data.TpsResponse.forEach(tpsResponseStr => {
+            let tpsResponse = JSON.parse(tpsResponseStr);
+            totalTps += tpsResponse.tps;
+            totalDelay += tpsResponse.averageDelay;
+          });
+          const avgDelay = totalDelay / response.data.TpsResponse.length;
+          const currentTime = new Date().toLocaleString()
+
+          // let tpsResponse = JSON.parse(response.data.TpsResponse);
           //解析TPS数据
 
-          const currentTime = new Date().toLocaleString()
-          //添加当前系统时间
-    
+          
+          //添加响应时间数据
+          this.responseTimeData.push({ time: currentTime, value: avgDelay }) 
+          const responseTimeChart = echarts.getInstanceByDom(this.$refs.responseTimeChartContainer)
+          responseTimeChart.setOption({
+              xAxis: {
+              data: this.responseTimeData.map(item => item.time)
+              },
+              series: [{
+              data: this.responseTimeData.map(item => item.value)
+        }]
+      })
 
-          this.tpsData.push({ time: currentTime, value: tpsResponse.tps })
+          this.tpsData.push({ time: currentTime, value: totalTps })
           const tpsChart = echarts.getInstanceByDom(this.$refs.tpsChartContainer)
           tpsChart.setOption({
             xAxis: {
@@ -214,38 +245,9 @@ export default {
           // 处理错误响应
           console.error('交易处理失败:', error);
         });
-            }, 3000);
+        
+            }, 1000);
       // 发送交易的逻辑代码...
-      
-
-      // 模拟更新数据
-      // const newTPS = Math.floor(Math.random() * 100 + 50)
-      // const newResponseTime = Math.floor(Math.random() * 50 + 30)
-      // const currentTime = new Date().toLocaleString()
-
-      // this.tpsData.push({ time: currentTime, value: newTPS })
-      // this.responseTimeData.push({ time: currentTime, value: newResponseTime })
-
-      // 更新图表
-      // const tpsChart = echarts.getInstanceByDom(this.$refs.tpsChartContainer)
-      // tpsChart.setOption({
-      //   xAxis: {
-      //     data: this.tpsData.map(item => item.time)
-      //   },
-      //   series: [{
-      //     data: this.tpsData.map(item => item.value)
-      //   }]
-      // })
-
-      const responseTimeChart = echarts.getInstanceByDom(this.$refs.responseTimeChartContainer)
-      responseTimeChart.setOption({
-        xAxis: {
-          data: this.responseTimeData.map(item => item.time)
-        },
-        series: [{
-          data: this.responseTimeData.map(item => item.value)
-        }]
-      })
     }
   }
 }
